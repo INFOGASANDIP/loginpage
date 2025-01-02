@@ -12,11 +12,8 @@
   "description": "",
   "dependencies": {
     "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18.18.0 <19.0.0"  // Replace with the Node.js version you want
   }
 }
-{
-  "scripts": {
-    "start": "node server.js"
-  }
-}
-
