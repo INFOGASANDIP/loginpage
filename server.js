@@ -1,66 +1,102 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const bodyParser = require('body-parser');
+const databaseDir = path.join(__dirname, 'database');
 const app = express();
 const PORT = 3000;
 
-// Middleware to parse JSON
-app.use(express.json());
+// Middleware
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Paths for static files and database
-const frontendPath = path.join(__dirname, 'frontend');
-const dbPath = path.join(__dirname, 'database', 'users.json');
+// Path to the users.json file
+const usersFilePath = path.join(__dirname, 'database', 'users.json');
+if (!fs.existsSync(databaseDir)) {
+    fs.mkdirSync(databaseDir);
+}
+// Helper function to read and write to users.json
+function readUsers() {
+    // If the file does not exist, create it with an empty object
+    if (!fs.existsSync(usersFilePath)) {
+        fs.writeFileSync(usersFilePath, JSON.stringify({}));
+    }
 
-// Serve static files
-app.use(express.static(frontendPath));
+    const data = fs.readFileSync(usersFilePath, 'utf-8');
 
-// Serve the index.html as the default page for root
-app.get('/', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
+    // If the file is empty, return an empty object
+    if (!data.trim()) {
+        return {};
+    }
+
+    // Parse the JSON content
+    return JSON.parse(data);
+}
+
+
+function writeUsers(users) {
+    try {
+        fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2)); // Pretty print JSON
+    } catch (error) {
+        console.error('Error writing to users.json:', error);
+    }
+}
+
+
+// Routes
+
+// Handle signup
+app.post('/signup', (req, res) => {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+        return res.status(400).json({ success: false, message: 'All fields are required.' });
+    }
+
+    const users = readUsers();
+
+    if (users[email]) {
+        return res.status(400).json({ success: false, message: 'Email already exists.' });
+    }
+
+    users[email] = { username, password };
+    writeUsers(users);
+
+    // Send a success response
+    res.status(200).json({ success: true, message: 'Account created successfully.' });
+});
+
+
+// Handle login
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+        return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    }
+
+    // Read users
+    const users = readUsers();
+
+    // Check if user exists and password matches
+    if (users[email] && users[email].password === password) {
+        return res.json({ success: true, redirect: '/home.html' });
+    }
+
+    res.status(401).json({ success: false, message: 'Invalid email or password.' });
+});
+
+// Serve the homepage
+app.get('/home.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend', 'home.html'));
 });
 app.get('/signup.html', (req, res) => {
     res.sendFile(path.join(frontendPath, 'signup.html'));
 });
 
 
-// Route: Login
-app.post('/login', (req, res) => {
-    const { email, password } = req.body;
-
-    try {
-        const users = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-        if (users[email] && users[email].password === password) {
-            return res.json({ success: true, redirect: '/home.html' });
-        }
-
-        return res.json({ success: false, message: 'Email/Phone or password is incorrect.' });
-    } catch (err) {
-        console.error('Error reading users.json:', err);
-        return res.status(500).json({ success: false, message: 'Internal server error.' });
-    }
-});
-
-// Route: Signup
-app.post('/signup', (req, res) => {
-    const { email, password } = req.body;
-
-    try {
-        const users = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-        if (users[email]) {
-            return res.json({ success: false, message: 'User already exists!' });
-        }
-
-        users[email] = { password };
-        fs.writeFileSync(dbPath, JSON.stringify(users, null, 2));
-
-        return res.json({ success: true, redirect: '/home.html' });
-    } catch (err) {
-        console.error('Error writing to users.json:', err);
-        return res.status(500).json({ success: false, message: 'Internal server error.' });
-    }
-});
-
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
