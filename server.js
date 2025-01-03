@@ -7,7 +7,6 @@ const app = express();
 const PORT = 3000;
 const cors = require("cors");
 
-const app = express();
 app.use(cors({ origin: "https://infogasandip.github.io" })); // Allow requests from your frontend
 
 
