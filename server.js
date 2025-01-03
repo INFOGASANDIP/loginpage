@@ -6,6 +6,16 @@ const databaseDir = path.join(__dirname, 'database');
 const app = express();
 const PORT = 3000;
 const cors = require("cors");
+const { Pool } = require('pg');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+async function createUser(username, password) {
+  const query = 'INSERT INTO users (username, password) VALUES ($1, $2)';
+  await pool.query(query, [username, password]);
+}
+
 
 app.use(cors({ origin: "https://infogasandip.github.io" })); // Allow requests from your frontend
 
